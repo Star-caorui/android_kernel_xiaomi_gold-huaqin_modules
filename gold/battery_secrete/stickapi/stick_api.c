@@ -289,9 +289,9 @@ static stick_ReturnCode_t _stick_Start_Pairing(stick_Handler_t *pSTICK)
 		   32);
 
 	/*   o signature value (UM 6.3 - 5.3) */
-	memcpy(pSTICK->ctx.message_signature.r,
-		   pSTICK->rsp.payload.establish_pairing_key_start.signature.r,
-		   64 <= sizeof(pSTICK->ctx.message_signature.r) ? 64 : sizeof(pSTICK->ctx.message_signature.r));
+	memcpy(&pSTICK->ctx.message_signature,
+		   &pSTICK->rsp.payload.establish_pairing_key_start.signature,
+		   sizeof(pSTICK->ctx.message_signature));
 
 	pSTICK->ctx.state = STICK_PAIRING_STARTED;
 	stick_debug(" \t=> STICK Key slot : 0x%02X%02X ", pSTICK->ctx.message_digest.cartridge_slot_number[0],
@@ -404,9 +404,9 @@ static stick_ReturnCode_t _stick_Resume_Pairing(stick_Handler_t *pSTICK)
 	/*   o cartridge ECDHE public key (UM 6.3 - 5.2) */
 	memcpy(pSTICK->ctx.message_digest.cartridge_ecdh_public_key, pSTICK->rsp.payload.establish_pairing_key_start.cartridge_ecdh_public_key, 32);
 	/*   o signature value (UM 6.3 - 5.3) */
-	memcpy(pSTICK->ctx.message_signature.r,
-			pSTICK->rsp.payload.establish_pairing_key_start.signature.r,
-			64 <= sizeof(pSTICK->ctx.message_signature.r) ? 64 : sizeof(pSTICK->ctx.message_signature.r));
+	memcpy(&pSTICK->ctx.message_signature,
+			&pSTICK->rsp.payload.establish_pairing_key_start.signature,
+			sizeof(pSTICK->ctx.message_signature));
 
 	pSTICK->ctx.state = STICK_PAIRING_STARTED;
 	stick_debug(" \t=> STICK Key slot : 0x%02X%02X ", pSTICK->ctx.message_digest.cartridge_slot_number[0],
