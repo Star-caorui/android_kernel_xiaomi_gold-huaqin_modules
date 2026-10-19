@@ -1,0 +1,13 @@
+# SPDX-License-Identifier: GPL-2.0
+# the device modules' headers and flags, as these drivers had when they were built from there
+LINUXINCLUDE := $(DEVCIE_MODULES_INCLUDE) $(LINUXINCLUDE)
+
+subdir-ccflags-y += -Wall -Werror \
+		-I$(DEVICE_MODULES_PATH)/include \
+		-I$(DEVICE_MODULES_PATH)/include/uapi
+
+obj-y += battery_secrete/
+obj-$(CONFIG_SND_SOC_SIA8152X) += audio/sia81xx/
+obj-y += lcm/
+obj-$(CONFIG_TOUCHSCREEN_XIAOMI_TOUCHFEATURE) += touchscreen/xiaomi/
+obj-y += touchscreen/FT3683G/ touchscreen/GT9916R/
