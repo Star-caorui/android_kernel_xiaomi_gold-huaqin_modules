@@ -121,8 +121,6 @@ CFLAGS_stickapi/libstickcrypto/tweetnacl.o += -Wframe-larger-than=4096
 CFLAGS_slg.o += -Wframe-larger-than=4096
 # Stock names the auth device with dev_set_name(dev, name)
 CFLAGS_battery_auth_class.o += -Wno-format-security
-# Stock's ds28e30.c reads and writes 32-byte pages through 16-byte buffers, which fortify warns of
-CFLAGS_ds28e30.o += -Wno-error=attribute-warning
 # auth_battery reads the gauge's cycle count from the battery manager, as stock
 CFLAGS_auth_battery.o += -I$(DEVICE_MODULES_PATH)/drivers/power/supply \
 	-I$(DEVICE_MODULES_PATH)/drivers/misc/mediatek/typec/tcpc/inc

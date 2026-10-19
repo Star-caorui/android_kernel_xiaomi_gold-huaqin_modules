@@ -1990,7 +1990,7 @@ static ssize_t ds28e30_ds_pagedata_status_read(struct device *dev, struct device
 					       *attr, char *buf)
 {
 	int result;
-	unsigned char pagedata[16] = { 0x00 };
+	unsigned char pagedata[32] = { 0x00 };
 	int i = 0;
 	int count = 0;
 
@@ -2021,39 +2021,6 @@ static ssize_t ds28e30_ds_pagedata_status_read(struct device *dev, struct device
 			 pagedata[9], pagedata[10], pagedata[11],
 			 pagedata[12], pagedata[13], pagedata[14],
 			 pagedata[15]);
-}
-
-static ssize_t ds28e30_ds_pagedata_store(struct device *dev,
-					 struct device_attribute *attr,
-					 const char *buf, size_t count)
-{
-	int result;
-	unsigned char pagedata[16] = { 0x00 };
-
-	if (sscanf
-	    (buf,
-	     "%2hhx,%2hhx,%2hhx,%2hhx,%2hhx,%2hhx,%2hhx,%2hhx,%2hhx,%2hhx,%2hhx,%2hhx,%2hhx,%2hhx,%2hhx,%2hhx",
-	     &pagedata[0], &pagedata[1], &pagedata[2], &pagedata[3],
-	     &pagedata[4], &pagedata[5], &pagedata[6], &pagedata[7],
-	     &pagedata[8], &pagedata[9], &pagedata[10], &pagedata[11],
-	     &pagedata[12], &pagedata[13], &pagedata[14],
-	     &pagedata[15]) != 16)
-		return -EINVAL;
-
-	ds_dbg
-	    ("new data = %02x,%02x,%02x,%02x,%02x,%02x,%02x,%02x,%02x,%02x,%02x,%02x,%02x,%02x,%02x,%02x\n",
-	     pagedata[0], pagedata[1], pagedata[2], pagedata[3],
-	     pagedata[4], pagedata[5], pagedata[6], pagedata[7],
-	     pagedata[8], pagedata[9], pagedata[10], pagedata[11],
-	     pagedata[12], pagedata[13], pagedata[14], pagedata[15]);
-
-	result = ds28e30_cmd_writeMemory(pagenumber, pagedata);
-	if (result == DS_TRUE)
-		ds_log("DS28E30_cmd_writeMemory success!\n");
-	else
-		ds_log("DS28E30_cmd_writeMemory fail!\n");
-
-	return count;
 }
 
 static ssize_t ds28e30_ds_time_status_read(struct device *dev,
@@ -2335,7 +2302,7 @@ static ssize_t ds28e30_ds_cycle_count_read(struct device *dev,
 {
 	int ret;
 	unsigned int cycle_count;
-	unsigned char pagedata[16] = { 0x00 };
+	unsigned char pagedata[32] = { 0x00 };
 
 	ret = ds28e30_get_page_data_retry(DC_PAGE, pagedata);
 	if (ret == DS_TRUE) {
@@ -2401,9 +2368,8 @@ static DEVICE_ATTR(ds_romid, S_IRUGO, ds28e30_ds_romid_status_read, NULL);
 static DEVICE_ATTR(ds_pagenumber, S_IRUGO | S_IWUSR | S_IWGRP,
 		   ds28e30_ds_pagenumber_status_read,
 		   ds28e30_ds_pagenumber_store);
-static DEVICE_ATTR(ds_pagedata, S_IRUGO | S_IWUSR | S_IWGRP,
-		   ds28e30_ds_pagedata_status_read,
-		   ds28e30_ds_pagedata_store);
+static DEVICE_ATTR(ds_pagedata, S_IRUGO,
+		   ds28e30_ds_pagedata_status_read, NULL);
 static DEVICE_ATTR(ds_time, S_IRUGO | S_IWUSR | S_IWGRP,
 		   ds28e30_ds_time_status_read, ds28e30_ds_time_store);
 static DEVICE_ATTR(ds_session_seed, S_IRUGO | S_IWUSR | S_IWGRP,
