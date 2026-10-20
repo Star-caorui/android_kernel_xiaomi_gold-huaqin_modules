@@ -1,0 +1,27 @@
+load("//build/bazel_mgk_rules:mgk_ko.bzl", "define_mgk_ko")
+
+package(
+    default_visibility = [
+        "//visibility:public",
+    ],
+)
+
+define_mgk_ko(
+    name = "huaqin",
+    srcs = glob(["**"], exclude = ["BUILD.bazel"]),
+    outs = [
+        "audio/sia81xx/snd-soc-sipa.ko",
+        "audio/sia81xx/snd-soc-sipa-tuning.ko",
+        "battery_secrete/auth_battery.ko",
+        "battery_secrete/battery_auth_class.ko",
+        "battery_secrete/ds28e30_verify.ko",
+        "battery_secrete/slg_verify.ko",
+        "battery_secrete/stick_verify.ko",
+        "lcm/panel-n17-36-02-0a-dsc-vdo.ko",
+        "lcm/panel-n17-36-0f-0c-dsc-vdo.ko",
+        "lcm/panel-n17-42-0d-0b-dsc-vdo.ko",
+        "touchscreen/FT3683G/focaltech_tp.ko",
+        "touchscreen/GT9916R/gt9916r.ko",
+        "touchscreen/xiaomi/xiaomi_touch.ko",
+    ],
+)
