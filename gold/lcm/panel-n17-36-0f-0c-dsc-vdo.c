@@ -1041,12 +1041,61 @@ int panel_get_doze_brightness(struct drm_panel *panel, u32 *brightness) {
  */
 static bool aod_cmd = true;
 module_param(aod_cmd, bool, 0644);
+/*
+ * The DDIC's 0x48: the high nibble the refresh rate (0 120 Hz, 1 90 Hz, 2 60 Hz), the low one
+ * the interface, 3 video and 0 command, as the command mode panels on this DDIC write it
+ * (Visionox HC5622, Chipone ICNA35xx). AOD test: aod_mode is what doze writes, aod_lp also puts
+ * the DDIC in its own AOD mode (0x90 0x01, as HC5622's doze does).
+ */
+static uint aod_mode = 0x20;
+module_param(aod_mode, uint, 0644);
+static bool aod_lp;
+module_param(aod_lp, bool, 0644);
+static bool aod_lp_on;
 
 static unsigned long panel_doze_get_mode_flags(struct drm_panel *panel, int doze_en)
 {
 	if (doze_en && aod_cmd)
 		return 0;
 	return MIPI_DSI_MODE_VIDEO | MIPI_DSI_MODE_VIDEO_SYNC_PULSE;
+}
+
+static int panel_doze_enable(struct drm_panel *panel, void *dsi, dcs_write_gce cb, void *handle)
+{
+	char unlock1[] = {0x9C, 0xA5, 0xA5}, unlock2[] = {0xFD, 0x5A, 0x5A};
+	char mode[] = {0x48, (char)aod_mode}, lp[] = {0x90, 0x01};
+
+	if (!aod_cmd)
+		return 0;
+	pr_info("%s: 0x48 0x%02x, aod_lp %d\n", __func__, aod_mode, aod_lp);
+	cb(dsi, handle, unlock1, sizeof(unlock1));
+	cb(dsi, handle, unlock2, sizeof(unlock2));
+	cb(dsi, handle, mode, sizeof(mode));
+	if (aod_lp) {
+		cb(dsi, handle, lp, sizeof(lp));
+		aod_lp_on = true;
+	}
+	return 0;
+}
+
+static int panel_doze_disable(struct drm_panel *panel, void *dsi, dcs_write_gce cb, void *handle)
+{
+	struct panel *ctx = drm_panel_to_panel(panel);
+	char unlock1[] = {0x9C, 0xA5, 0xA5}, unlock2[] = {0xFD, 0x5A, 0x5A};
+	char mode[] = {0x48, ctx->dynamic_fps == 120 ? 0x03 : ctx->dynamic_fps == 90 ? 0x13 : 0x23};
+	char lp[] = {0x90, 0x00};
+
+	if (!aod_cmd)
+		return 0;
+	pr_info("%s: 0x48 0x%02x, aod_lp was %d\n", __func__, mode[1], aod_lp_on);
+	cb(dsi, handle, unlock1, sizeof(unlock1));
+	cb(dsi, handle, unlock2, sizeof(unlock2));
+	if (aod_lp_on) {
+		cb(dsi, handle, lp, sizeof(lp));
+		aod_lp_on = false;
+	}
+	cb(dsi, handle, mode, sizeof(mode));
+	return 0;
 }
 
 static struct mtk_panel_funcs ext_funcs = {
@@ -1069,6 +1118,8 @@ static struct mtk_panel_funcs ext_funcs = {
 /*N17 code for HQ-299519 by p-lizongrui at 2023/07/10 end*/
 /*N17 code for HQ-306105 by p-lizongrui at 2023/07/25 start*/
 	.doze_get_mode_flags = panel_doze_get_mode_flags,
+	.doze_enable = panel_doze_enable,
+	.doze_disable = panel_doze_disable,
 	.set_doze_brightness = panel_set_doze_brightness,
 	.get_doze_brightness = panel_get_doze_brightness,
 /*N17 code for HQ-306105 by p-lizongrui at 2023/07/25 end*/
