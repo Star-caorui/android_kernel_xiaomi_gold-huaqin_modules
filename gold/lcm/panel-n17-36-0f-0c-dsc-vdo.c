@@ -1033,6 +1033,22 @@ int panel_get_doze_brightness(struct drm_panel *panel, u32 *brightness) {
 }
 
 /*N17 code for HQ-306105 by p-lizongrui at 2023/07/25 end*/
+
+/*
+ * Doze in command mode: the panel shows its last frame from its own RAM while
+ * nothing is sent, so the display path can be off between updates.
+ * AOD test: aod_cmd=0 keeps video mode in doze.
+ */
+static bool aod_cmd = true;
+module_param(aod_cmd, bool, 0644);
+
+static unsigned long panel_doze_get_mode_flags(struct drm_panel *panel, int doze_en)
+{
+	if (doze_en && aod_cmd)
+		return 0;
+	return MIPI_DSI_MODE_VIDEO | MIPI_DSI_MODE_VIDEO_SYNC_PULSE;
+}
+
 static struct mtk_panel_funcs ext_funcs = {
 	.set_backlight_cmdq = panel_setbacklight_cmdq,
 	.reset = panel_ext_reset,
@@ -1052,6 +1068,7 @@ static struct mtk_panel_funcs ext_funcs = {
 	.get_wp_info = panel_get_wp_info,
 /*N17 code for HQ-299519 by p-lizongrui at 2023/07/10 end*/
 /*N17 code for HQ-306105 by p-lizongrui at 2023/07/25 start*/
+	.doze_get_mode_flags = panel_doze_get_mode_flags,
 	.set_doze_brightness = panel_set_doze_brightness,
 	.get_doze_brightness = panel_get_doze_brightness,
 /*N17 code for HQ-306105 by p-lizongrui at 2023/07/25 end*/
