@@ -396,6 +396,9 @@ static int panel_disable(struct drm_panel *panel)
 static int panel_init_power(struct drm_panel *panel);
 static int panel_power_down(struct drm_panel *panel);
 /*N17 code for HQ-299519 by p-lizongrui at 2023/07/10 end*/
+/* AOD test: whether doze has the DDIC in command mode, and in its AOD mode */
+static bool aod_lp_on, aod_cmd_on;
+
 static int panel_unprepare(struct drm_panel *panel)
 {
 	struct panel *ctx = drm_panel_to_panel(panel);
@@ -419,6 +422,7 @@ static int panel_unprepare(struct drm_panel *panel)
 	mutex_unlock(&ctx->panel_lock);
 	ctx->error = 0;
 	ctx->prepared = false;
+	aod_cmd_on = aod_lp_on = false;
 	return 0;
 }
 
@@ -1051,7 +1055,12 @@ static uint aod_mode = 0x20;
 module_param(aod_mode, uint, 0644);
 static bool aod_lp;
 module_param(aod_lp, bool, 0644);
-static bool aod_lp_on;
+/*
+ * AOD test: aod_sleep=1 changes the interface (0x48) with the panel asleep, as the command mode
+ * panels on this DDIC write 0x48 before sleep out (Huawei 190-D01, Chipone ICNA35xx).
+ */
+static bool aod_sleep = true;
+module_param(aod_sleep, bool, 0644);
 
 static unsigned long panel_doze_get_mode_flags(struct drm_panel *panel, int doze_en)
 {
@@ -1060,17 +1069,38 @@ static unsigned long panel_doze_get_mode_flags(struct drm_panel *panel, int doze
 	return MIPI_DSI_MODE_VIDEO | MIPI_DSI_MODE_VIDEO_SYNC_PULSE;
 }
 
-static int panel_doze_enable(struct drm_panel *panel, void *dsi, dcs_write_gce cb, void *handle)
+/* the DDIC's interface (and refresh rate) to 0x48 <mode>, asleep with aod_sleep */
+static void panel_doze_set_interface(void *dsi, dcs_write_gce cb, void *handle, u8 val)
 {
 	char unlock1[] = {0x9C, 0xA5, 0xA5}, unlock2[] = {0xFD, 0x5A, 0x5A};
-	char mode[] = {0x48, (char)aod_mode}, lp[] = {0x90, 0x01};
+	char mode[] = {0x48, val}, te[] = {0x35, 0x00};
+	char off = 0x28, sleep_in = 0x10, sleep_out = 0x11, on = 0x29;
 
-	if (!aod_cmd)
-		return 0;
-	pr_info("%s: 0x48 0x%02x, aod_lp %d\n", __func__, aod_mode, aod_lp);
+	if (aod_sleep) {
+		cb(dsi, handle, &off, 1);
+		cb(dsi, handle, &sleep_in, 1);
+		msleep(120);
+	}
 	cb(dsi, handle, unlock1, sizeof(unlock1));
 	cb(dsi, handle, unlock2, sizeof(unlock2));
 	cb(dsi, handle, mode, sizeof(mode));
+	if (aod_sleep) {
+		cb(dsi, handle, te, sizeof(te));
+		cb(dsi, handle, &sleep_out, 1);
+		msleep(120);
+		cb(dsi, handle, &on, 1);
+	}
+}
+
+static int panel_doze_enable(struct drm_panel *panel, void *dsi, dcs_write_gce cb, void *handle)
+{
+	char lp[] = {0x90, 0x01};
+
+	if (!aod_cmd || aod_cmd_on)
+		return 0;
+	pr_info("%s: 0x48 0x%02x, aod_lp %d, aod_sleep %d\n", __func__, aod_mode, aod_lp, aod_sleep);
+	panel_doze_set_interface(dsi, cb, handle, aod_mode);
+	aod_cmd_on = true;
 	if (aod_lp) {
 		cb(dsi, handle, lp, sizeof(lp));
 		aod_lp_on = true;
@@ -1081,20 +1111,18 @@ static int panel_doze_enable(struct drm_panel *panel, void *dsi, dcs_write_gce c
 static int panel_doze_disable(struct drm_panel *panel, void *dsi, dcs_write_gce cb, void *handle)
 {
 	struct panel *ctx = drm_panel_to_panel(panel);
-	char unlock1[] = {0x9C, 0xA5, 0xA5}, unlock2[] = {0xFD, 0x5A, 0x5A};
-	char mode[] = {0x48, ctx->dynamic_fps == 120 ? 0x03 : ctx->dynamic_fps == 90 ? 0x13 : 0x23};
+	u8 mode = ctx->dynamic_fps == 120 ? 0x03 : ctx->dynamic_fps == 90 ? 0x13 : 0x23;
 	char lp[] = {0x90, 0x00};
 
-	if (!aod_cmd)
+	if (!aod_cmd_on)
 		return 0;
-	pr_info("%s: 0x48 0x%02x, aod_lp was %d\n", __func__, mode[1], aod_lp_on);
-	cb(dsi, handle, unlock1, sizeof(unlock1));
-	cb(dsi, handle, unlock2, sizeof(unlock2));
+	pr_info("%s: 0x48 0x%02x, aod_lp was %d, aod_sleep %d\n", __func__, mode, aod_lp_on, aod_sleep);
 	if (aod_lp_on) {
 		cb(dsi, handle, lp, sizeof(lp));
 		aod_lp_on = false;
 	}
-	cb(dsi, handle, mode, sizeof(mode));
+	panel_doze_set_interface(dsi, cb, handle, mode);
+	aod_cmd_on = false;
 	return 0;
 }
 
