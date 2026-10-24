@@ -1061,6 +1061,9 @@ module_param(aod_lp, bool, 0644);
  */
 static bool aod_sleep = true;
 module_param(aod_sleep, bool, 0644);
+/* AOD test: aod_window=1 sets the full screen as the RAM window, as command mode panels do */
+static bool aod_window = true;
+module_param(aod_window, bool, 0644);
 
 static unsigned long panel_doze_get_mode_flags(struct drm_panel *panel, int doze_en)
 {
@@ -1101,6 +1104,13 @@ static int panel_doze_enable(struct drm_panel *panel, void *dsi, dcs_write_gce c
 	pr_info("%s: 0x48 0x%02x, aod_lp %d, aod_sleep %d\n", __func__, aod_mode, aod_lp, aod_sleep);
 	panel_doze_set_interface(dsi, cb, handle, aod_mode);
 	aod_cmd_on = true;
+	if (aod_window) {
+		char col[] = {0x2A, 0x00, 0x00, (FRAME_WIDTH - 1) >> 8, (FRAME_WIDTH - 1) & 0xff};
+		char page[] = {0x2B, 0x00, 0x00, (FRAME_HEIGHT - 1) >> 8, (FRAME_HEIGHT - 1) & 0xff};
+
+		cb(dsi, handle, col, sizeof(col));
+		cb(dsi, handle, page, sizeof(page));
+	}
 	if (aod_lp) {
 		cb(dsi, handle, lp, sizeof(lp));
 		aod_lp_on = true;
